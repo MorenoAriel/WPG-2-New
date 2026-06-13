@@ -32,6 +32,10 @@ public class PlayerPhysics : MonoBehaviour
     private Rigidbody2D rb;
     private bool isDead = false;
 
+    public AudioSource audioSource;
+    public AudioClip bounceSound;
+    public AudioClip bounceSound2;
+
     private PlayerController controller;
 
 
@@ -39,6 +43,9 @@ public class PlayerPhysics : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         controller = GetComponent<PlayerController>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
 
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
@@ -133,6 +140,18 @@ public class PlayerPhysics : MonoBehaviour
             velocity.y = Mathf.Abs(velocity.y) * bounceForce;
             velocity.x *= 0.9f;
             Debug.Log("BOUNCE!");
+
+            if (audioSource != null)
+            {
+                if (bounceSound != null)
+                {
+                    audioSource.PlayOneShot(bounceSound);
+                }
+                if (bounceSound2 != null)
+                {
+                    audioSource.PlayOneShot(bounceSound2);
+                }
+            }
         }
         else
         {
@@ -146,6 +165,7 @@ public class PlayerPhysics : MonoBehaviour
             else
             {
                 currentState = PhysicsState.GameOver;
+                Debug.Log("MASUK GAME OVER DARI LANDING");
 
 
                 if (controller != null)

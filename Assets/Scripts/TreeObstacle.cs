@@ -19,7 +19,5 @@ public class TreeObstacle : MonoBehaviour
 
         // Kurangi kecepatan
         physics.velocity.x = Mathf.Max(physics.velocity.x - speedPenalty, 0f);
-
-        Debug.Log($"Nabrak pohon! Kecepatan berkurang {speedPenalty} m/s");
     }
 }

@@ -126,7 +126,6 @@ public class TreeSpawner : MonoBehaviour
         // Simpan ke list agar bisa dihapus nanti
         activeTrees.Add(tree);
 
-        Debug.Log($"Pohon spawn di X: {posX:F1}");
     }
 
     // ============================================================

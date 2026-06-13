@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class Camera : MonoBehaviour
+// CustomCamera.cs
+// Pengganti file lama yang bernama `Camera` untuk menghindari konflik nama
+public class CustomCamera : MonoBehaviour
 {
     public Transform target;
     public float smoothSpeed = 5f;

@@ -30,11 +30,24 @@ public class PlayerController : MonoBehaviour
     public float boostForce = 15f;
     public float boostCooldown = 1.5f;
 
+    [Header("Game Over")]
+    public float gameOverDelay = 2f;
+    public float slowMotionScale = 0.25f;
+    public float gameOverFadeTime = 0.25f;
+
     private float lastBoostTime;
     private PlayerPhysics physics;
 
     private float currentRotationAngle;
+    // Tambah di bawah "private float currentRotationAngle;"
+    public float CurrentRotationAngle => currentRotationAngle;
+    public float TargetAngle
+    {
+        get => targetAngle;
+        set => targetAngle = value;
+    }
     private float targetAngle;
+    private bool gameOverSequenceStarted = false;
 
     void Start()
     {
@@ -188,16 +201,63 @@ public class PlayerController : MonoBehaviour
         }
     }
     public void SetGameOver()
-{
-    Debug.Log("GAME OVER TRIGGERED");
-
-    currentState = PlayerState.GameOver;
-
-    if (gameOverUI != null)
     {
-        gameOverUI.ShowGameOver();
+        if (gameOverSequenceStarted) return;
+
+        Debug.Log("GAME OVER TRIGGERED");
+
+        currentState = PlayerState.GameOver;
+        gameOverSequenceStarted = true;
+
+        StartCoroutine(GameOverSequence());
     }
-}
+
+    IEnumerator GameOverSequence()
+    {
+        float originalTimeScale = Time.timeScale;
+        float originalFixedDeltaTime = Time.fixedDeltaTime;
+
+        yield return StartCoroutine(FadeTimeScale(originalTimeScale, slowMotionScale, gameOverFadeTime));
+
+        float pauseTime = Mathf.Max(0f, gameOverDelay - gameOverFadeTime);
+        yield return new WaitForSecondsRealtime(pauseTime);
+
+        if (gameOverUI == null)
+        {
+            gameOverUI = GameOverUI.Instance;
+            if (gameOverUI != null)
+                Debug.Log("[PlayerController] gameOverUI diisi dari GameOverUI.Instance");
+        }
+
+        if (gameOverUI != null)
+        {
+            gameOverUI.ShowGameOver();
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerController] GameOverUI tidak ditemukan. Game over UI tidak dapat ditampilkan.");
+        }
+
+        yield return StartCoroutine(FadeTimeScale(slowMotionScale, originalTimeScale, gameOverFadeTime));
+        Time.fixedDeltaTime = originalFixedDeltaTime;
+    }
+
+    IEnumerator FadeTimeScale(float fromScale, float toScale, float duration)
+    {
+        float timer = 0f;
+
+        while (timer < duration)
+        {
+            timer += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(timer / duration);
+            Time.timeScale = Mathf.Lerp(fromScale, toScale, t);
+            Time.fixedDeltaTime = 0.02f * Time.timeScale;
+            yield return null;
+        }
+
+        Time.timeScale = toScale;
+        Time.fixedDeltaTime = 0.02f * Time.timeScale;
+    }
 
     IEnumerator SlowMoRoutine(float scale, float duration)
     {
@@ -214,4 +274,5 @@ public class PlayerController : MonoBehaviour
         Time.timeScale = 1f;
         Time.fixedDeltaTime = 0.02f;
     }
+    
 }

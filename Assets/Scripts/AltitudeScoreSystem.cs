@@ -23,9 +23,14 @@ public float GetBestScore()
     [Header("Score Settings")]
     public float scoreMultiplier = 5f;     // dibuat lebih kecil biar halus
     public float airTimeBonus = 0.5f;
+    public float highAltitudeMultiplier = 2f; // multiplier tambahan saat ketinggian >= 20
+    public float highAltitudeThreshold = 20f;
 
     [Header("Start Delay")]
     public float startDelay = 1.5f;         // ⏳ jeda setelah SPACE
+
+    [Header("Integration")]
+    public BonusCameraSwitcher cameraSwitcher; // optional, drag BonusCameraSwitcher here to auto-switch cams
 
     private float currentScore = 0f;
     private float bestScore = 0f;
@@ -58,8 +63,13 @@ public float GetBestScore()
 
         if (height > 0.5f)
         {
+            // Hitung bonus multiplier untuk area high altitude
+            float multiplier = scoreMultiplier;
+            if (height >= highAltitudeThreshold)
+                multiplier *= highAltitudeMultiplier;
+
             // 🔥 SCORE SMOOTH (tidak langsung naik besar)
-            float targetGain = (height * scoreMultiplier + airTimeBonus);
+            float targetGain = (height * multiplier + airTimeBonus);
 
             currentScore = Mathf.Lerp(
                 currentScore,
@@ -69,6 +79,12 @@ public float GetBestScore()
         }
 
         UpdateUI();
+
+        // Inform camera switcher about current score so it can enable bounds
+        if (cameraSwitcher != null)
+        {
+            cameraSwitcher.CheckScore(Mathf.FloorToInt(currentScore));
+        }
     }
 
     // =========================================================
@@ -123,6 +139,20 @@ public float GetBestScore()
             PlayerPrefs.SetFloat("BEST_SCORE", bestScore);
             PlayerPrefs.Save();
         }
+    }
+
+    public void SetStartingScore(float score)
+    {
+        currentScore = score;
+        UpdateUI();
+    }
+
+    public void StartScore()
+    {
+        // Bypass input detection, langsung aktifkan counting
+        scoreStarted    = true;
+        countingEnabled = true;
+        startTimer      = 0f;
     }
 
     public void ResetScore()
