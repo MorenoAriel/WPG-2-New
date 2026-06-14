@@ -7,12 +7,7 @@ public class BonusGameTimer : MonoBehaviour
 {
     public static BonusGameTimer Instance;
 
-    public enum BonusGameStage
-    {
-        StageOne,
-        StageTwo,
-        Completed
-    }
+    public enum BonusGameStage { StageOne, StageTwo, Completed }
 
     [Header("Info Panel")]
     public GameObject infoPanel;
@@ -31,7 +26,6 @@ public class BonusGameTimer : MonoBehaviour
     [Header("UI References")]
     public GameObject healthUIPanel;
     public BonusGameStageTwo stageTwoController;
-    public GameObject gameOverPanel;
 
     [Header("Stage Control")]
     public BonusGameStage currentStage = BonusGameStage.StageOne;
@@ -61,76 +55,59 @@ public class BonusGameTimer : MonoBehaviour
                 infoPanelText.text = stageOneInfoText;
         }
 
-        if (timerPanel != null)
-            timerPanel.SetActive(false);
-
-        if (healthUIPanel != null)
-            healthUIPanel.SetActive(true);
+        if (timerPanel != null) timerPanel.SetActive(false);
+        if (healthUIPanel != null) healthUIPanel.SetActive(true);
 
         if (stageTwoController == null)
             stageTwoController = FindAnyObjectByType<BonusGameStageTwo>();
 
-        if (stageTwoController != null && stageTwoController.objectCountPanel != null)
+        if (stageTwoController?.objectCountPanel != null)
             stageTwoController.objectCountPanel.SetActive(false);
 
         StartCoroutine(BonusGameSequence());
     }
 
-    void OnEnable()
-    {
-        GameManager.GameOverEvent += OnGameOver;
-    }
-
-    void OnDisable()
-    {
-        GameManager.GameOverEvent -= OnGameOver;
-    }
+    void OnEnable()  { GameManager.GameOverEvent += OnGameOver; }
+    void OnDisable() { GameManager.GameOverEvent -= OnGameOver; }
 
     void OnGameOver()
     {
-        Debug.Log("[BonusGameTimer] Game Over terdeteksi! Menghentikan timer...");
+        if (shouldStopTimer) return;
+
+        Debug.Log("[BonusGameTimer] OnGameOver() — stop semua coroutine.");
         shouldStopTimer = true;
         timerRunning = false;
+        StopAllCoroutines();
+
         SetPlayerInvulnerable(false);
+        if (stageTwoController != null) stageTwoController.StopStageTwo();
 
-        if (stageTwoController != null)
-            stageTwoController.StopStageTwo();
-
-        ShowGameOverUI();
+        // Panggil langsung sebagai safety net jika event di GameOverUI_Bonus
+        // belum terdaftar karena timing issue
+        ForceShowGameOverUI();
     }
 
     IEnumerator BonusGameSequence()
     {
         yield return new WaitForSeconds(infoPanelDuration);
-
-        if (infoPanel != null)
-            infoPanel.SetActive(false);
-
-        if (timerPanel != null)
-            timerPanel.SetActive(true);
+        if (infoPanel != null) infoPanel.SetActive(false);
+        if (timerPanel != null) timerPanel.SetActive(true);
 
         yield return StartCoroutine(RunTimer(bonusGameDuration, false));
-
-        if (shouldStopTimer)
-            yield break;
+        if (shouldStopTimer) yield break;
 
         StartStageTwoTransition();
         yield return new WaitForSeconds(infoPanelDuration);
+        if (infoPanel != null) infoPanel.SetActive(false);
+        if (timerPanel != null) timerPanel.SetActive(true);
 
-        if (infoPanel != null)
-            infoPanel.SetActive(false);
-
-        if (timerPanel != null)
-            timerPanel.SetActive(true);
-
-        if (stageTwoController != null)
-            stageTwoController.StartStageTwo();
+        if (stageTwoController != null) stageTwoController.StartStageTwo();
 
         yield return StartCoroutine(RunTimer(bonusGameStageTwoDuration, true));
 
         if (!shouldStopTimer && !stageTwoCompleted)
         {
-            Debug.Log("[BonusGameTimer] Waktu bonus game 2 habis tetapi objektif belum tercapai. Game over.");
+            Debug.Log("[BonusGameTimer] Waktu Stage 2 habis, target belum tercapai.");
             TriggerStageTwoGameOver();
         }
     }
@@ -143,10 +120,8 @@ public class BonusGameTimer : MonoBehaviour
         while (timeRemaining > 0f && !shouldStopTimer && (!isStageTwo || !stageTwoCompleted))
         {
             timeRemaining -= Time.deltaTime;
-
             if (timerText != null)
-                timerText.text = Mathf.CeilToInt(timeRemaining).ToString();
-
+                timerText.text = Mathf.CeilToInt(Mathf.Max(timeRemaining, 0f)).ToString();
             yield return null;
         }
 
@@ -160,81 +135,72 @@ public class BonusGameTimer : MonoBehaviour
         if (infoPanel != null)
         {
             infoPanel.SetActive(true);
-            if (infoPanelText != null)
-                infoPanelText.text = stageTwoInfoText;
+            if (infoPanelText != null) infoPanelText.text = stageTwoInfoText;
         }
 
-        if (timerPanel != null)
-            timerPanel.SetActive(false);
-
-        if (healthUIPanel != null)
-            healthUIPanel.SetActive(false);
+        if (timerPanel != null) timerPanel.SetActive(false);
+        if (healthUIPanel != null) healthUIPanel.SetActive(false);
 
         SetPlayerInvulnerable(true);
-        StopStageOneSpawners();
-        DestroyStageOneObstacles();
-    }
 
-    void StopStageOneSpawners()
-    {
-        ObstacleSpawner[] spawners = FindObjectsByType<ObstacleSpawner>(FindObjectsSortMode.None);
-        foreach (ObstacleSpawner spawner in spawners)
-            spawner.StopSpawning();
-    }
-
-    void DestroyStageOneObstacles()
-    {
-        ObstacleMover[] movers = FindObjectsByType<ObstacleMover>(FindObjectsSortMode.None);
-        foreach (ObstacleMover mover in movers)
-            Destroy(mover.gameObject);
+        foreach (var s in FindObjectsByType<ObstacleSpawner>(FindObjectsSortMode.None))
+            s.StopSpawning();
+        foreach (var m in FindObjectsByType<ObstacleMover>(FindObjectsSortMode.None))
+            Destroy(m.gameObject);
     }
 
     public void NotifyStageTwoComplete()
     {
-        if (stageTwoCompleted)
-            return;
+        if (stageTwoCompleted) return;
 
         stageTwoCompleted = true;
         timerRunning = false;
         SetPlayerInvulnerable(false);
+        if (stageTwoController != null) stageTwoController.StopStageTwo();
+        if (timerText != null) timerText.text = "0";
 
-        if (stageTwoController != null)
-            stageTwoController.StopStageTwo();
-
-        if (timerText != null)
-            timerText.text = "0";
-
-        Debug.Log("[BonusGameTimer] Objektif bonus game 2 tercapai. Timer dihentikan.");
+        Debug.Log("[BonusGameTimer] Stage 2 selesai!");
+        // TODO: tampilkan layar Victory
     }
 
     void TriggerStageTwoGameOver()
     {
         shouldStopTimer = true;
         SetPlayerInvulnerable(false);
+        if (stageTwoController != null) stageTwoController.StopStageTwo();
 
-        if (stageTwoController != null)
-            stageTwoController.StopStageTwo();
+        // Picu lewat GameManager agar GameOverEvent di-broadcast ke semua subscriber
+        if (GameManager.Instance != null && !GameManager.Instance.gameOver)
+        {
+            Debug.Log("[BonusGameTimer] Memanggil GameManager.TriggerGameOverExternal().");
+            GameManager.Instance.TriggerGameOverExternal();
+        }
+        else
+        {
+            // Fallback: GameManager tidak ada atau sudah game over
+            Debug.LogWarning("[BonusGameTimer] GameManager tidak tersedia, tampilkan UI langsung.");
+            ForceShowGameOverUI();
+        }
+    }
 
-        ShowGameOverUI();
+    // Safety net: panggil ShowGameOver() langsung jika event tidak tertangkap
+    void ForceShowGameOverUI()
+    {
+        GameOverUI_Bonus ui = FindAnyObjectByType<GameOverUI_Bonus>(FindObjectsInactive.Include);
+        if (ui != null)
+        {
+            Debug.Log("[BonusGameTimer] ForceShowGameOverUI — memanggil ShowGameOver() langsung.");
+            ui.ShowGameOver();
+        }
+        else
+        {
+            Debug.LogError("[BonusGameTimer] GameOverUI_Bonus tidak ditemukan di scene!");
+        }
     }
 
     void SetPlayerInvulnerable(bool value)
     {
         ShipController ship = FindAnyObjectByType<ShipController>();
-        if (ship != null)
-            ship.SetInvulnerable(value);
-    }
-
-    void ShowGameOverUI()
-    {
-        GameOverUI_Bonus ui = FindAnyObjectByType<GameOverUI_Bonus>();
-        if (ui != null)
-        {
-            ui.ShowGameOver();
-            return;
-        }
-
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(true);
+        if (ship != null) ship.SetInvulnerable(value);
     }
 }

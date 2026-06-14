@@ -81,18 +81,42 @@ public class PlayerPhysics : MonoBehaviour
 
     void ApplyFlightPhysics()
     {
-        velocity.y -= gravity * Time.fixedDeltaTime;
+        float dt = Time.fixedDeltaTime;
 
-        float angleZ = flightAngle;
+        float angleZ = transform.eulerAngles.z > 180
+            ? transform.eulerAngles.z - 360
+            : transform.eulerAngles.z;
 
-        if (angleZ > -10f)
+        flightAngle = angleZ;
+        float angleRad = angleZ * Mathf.Deg2Rad;
+        float lift = Mathf.Sin(angleRad);
+        float forward = Mathf.Cos(angleRad);
+
+        // Gravity always applies downward.
+        velocity.y -= gravity * dt;
+
+        if (Mathf.Abs(angleZ) <= 10f)
         {
-            float liftAmount = Mathf.Cos(angleZ * Mathf.Deg2Rad) * liftForceMultiplier;
-            velocity.y += liftAmount * (velocity.x / 10f) * Time.fixedDeltaTime;
+            // Near horizontal: glide slowly downward and lose forward speed.
+            float glideLift = Mathf.Clamp01(forward) * liftForceMultiplier * 0.2f;
+            velocity.y += glideLift * dt;
+            velocity.x -= velocity.x * (airResistance * 0.3f) * dt;
+        }
+        else if (angleZ > 10f)
+        {
+            // Climbing: gain altitude while losing forward momentum.
+            velocity.y += lift * liftForceMultiplier * dt;
+            velocity.x -= Mathf.Abs(lift) * (airResistance + 0.3f) * dt;
+        }
+        else
+        {
+            // Diving: accelerate forward and fall faster.
+            velocity.x += Mathf.Abs(lift) * liftForceMultiplier * dt;
+            velocity.y -= Mathf.Abs(lift) * gravity * 0.2f * dt;
         }
 
-        velocity.x -= (velocity.x * airResistance * 0.1f) * Time.fixedDeltaTime;
-
+        // Aerodynamic drag on horizontal speed.
+        velocity.x -= (velocity.x * airResistance * 0.1f) * dt;
         velocity.x = Mathf.Clamp(velocity.x, 0f, maxSpeed);
 
         if (velocity.magnitude > maxSpeed)

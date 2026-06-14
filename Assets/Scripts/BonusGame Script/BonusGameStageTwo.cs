@@ -30,6 +30,9 @@ public class BonusGameStageTwo : MonoBehaviour
     public float moveSpeed = 5f;
     public float destroyX = -15f;
 
+    [Header("Win UI")]
+    public GameObject winPanel;
+
     private int collectedTypeA = 0;
     private int collectedTypeB = 0;
     private bool stageActive = false;
@@ -42,12 +45,14 @@ public class BonusGameStageTwo : MonoBehaviour
 
         if (objectCountPanel != null)
             objectCountPanel.SetActive(false);
+
+        if (winPanel != null)
+            winPanel.SetActive(false);
     }
 
     public void StartStageTwo()
     {
-        if (stageActive)
-            return;
+        if (stageActive) return;
 
         stageActive = true;
         collectedTypeA = 0;
@@ -74,7 +79,6 @@ public class BonusGameStageTwo : MonoBehaviour
         {
             float wait = Random.Range(spawnIntervalMin, spawnIntervalMax);
             yield return new WaitForSeconds(wait);
-
             SpawnNextCollectable();
             nextCollectable = 1 - nextCollectable;
         }
@@ -83,38 +87,25 @@ public class BonusGameStageTwo : MonoBehaviour
     void SpawnNextCollectable()
     {
         GameObject prefab = nextCollectable == 0 ? collectableTypeA : collectableTypeB;
-        if (prefab == null)
-            return;
+        if (prefab == null) return;
 
         float spawnY = Random.Range(spawnYMin, spawnYMax);
         GameObject spawned = Instantiate(prefab, new Vector3(spawnX, spawnY, 0f), Quaternion.identity);
+
         CollectableMover mover = spawned.GetComponent<CollectableMover>();
-        if (mover == null)
-        {
-            mover = spawned.AddComponent<CollectableMover>();
-            mover.moveSpeed = moveSpeed;
-            mover.destroyX = destroyX;
-        }
-        else
-        {
-            mover.moveSpeed = moveSpeed;
-            mover.destroyX = destroyX;
-        }
+        if (mover == null) mover = spawned.AddComponent<CollectableMover>();
+        mover.moveSpeed = moveSpeed;
+        mover.destroyX = destroyX;
 
         CollectableItem item = spawned.GetComponent<CollectableItem>();
-        if (item == null)
-        {
-            item = spawned.AddComponent<CollectableItem>();
-        }
-
+        if (item == null) item = spawned.AddComponent<CollectableItem>();
         item.SetType(nextCollectable == 0 ? CollectableItem.CollectableType.TypeA : CollectableItem.CollectableType.TypeB);
         item.stageTwoController = this;
     }
 
     public void RegisterCollectable(CollectableItem.CollectableType type)
     {
-        if (!stageActive)
-            return;
+        if (!stageActive) return;
 
         if (type == CollectableItem.CollectableType.TypeA)
             collectedTypeA = Mathf.Min(collectedTypeA + 1, targetTypeA);
@@ -137,12 +128,18 @@ public class BonusGameStageTwo : MonoBehaviour
 
     void CompleteStageTwo()
     {
-        if (!stageActive)
-            return;
+        if (!stageActive) return;
 
         stageActive = false;
         spawning = false;
         StopAllCoroutines();
+
+        Debug.Log("[BonusGameStageTwo] Stage 2 selesai! Menampilkan panel menang.");
+
+        if (winPanel != null)
+            winPanel.SetActive(true);
+        else
+            Debug.LogWarning("[BonusGameStageTwo] winPanel belum di-assign di Inspector!");
 
         BonusGameTimer.Instance?.NotifyStageTwoComplete();
     }

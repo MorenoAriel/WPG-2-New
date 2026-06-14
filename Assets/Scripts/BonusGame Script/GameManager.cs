@@ -17,9 +17,9 @@ public class GameManager : MonoBehaviour
     public delegate void OnGameOver();
     public delegate void OnHealthChanged(int current, int max);
 
-    public static event OnGameStarted      GameStartedEvent;
-    public static event OnGameOver         GameOverEvent;
-    public static event OnHealthChanged    HealthChangedEvent;
+    public static event OnGameStarted   GameStartedEvent;
+    public static event OnGameOver      GameOverEvent;
+    public static event OnHealthChanged HealthChangedEvent;
 
     void Awake()
     {
@@ -51,7 +51,6 @@ public class GameManager : MonoBehaviour
 
         Debug.Log($"[GameManager] Hit! Health → {currentHealth}/{maxHealth}");
 
-        // Broadcast agar health bar update
         HealthChangedEvent?.Invoke(currentHealth, maxHealth);
 
         if (currentHealth <= 0)
@@ -61,11 +60,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Public: dipanggil BonusGameTimer saat timer Stage 2 habis
+    public void TriggerGameOverExternal()
+    {
+        if (gameOver) return;
+        Debug.Log("[GameManager] TriggerGameOverExternal — Stage 2 timeout.");
+        TriggerGameOver();
+    }
+
     void TriggerGameOver()
     {
         gameOver = true;
         gameStarted = false;
-        GameOverEvent?.Invoke();
+        GameOverEvent?.Invoke(); // → GameOverUI_Bonus.ShowGameOver() terpanggil otomatis
     }
 
     public void RestartGame()

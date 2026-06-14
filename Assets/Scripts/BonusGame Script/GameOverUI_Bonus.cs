@@ -1,11 +1,6 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// GameOver UI used in the BonusGame scene.
-/// Listens to the BonusGame `GameManager.GameOverEvent` and shows a local panel.
-/// Reads score from `AltitudeScoreSystem` if present, else from `ScoreBridge`.
-/// </summary>
 public class GameOverUI_Bonus : MonoBehaviour
 {
     public GameObject gameOverPanel;
@@ -20,18 +15,26 @@ public class GameOverUI_Bonus : MonoBehaviour
     {
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
-    }
 
-    void OnEnable()
-    {
+        // FIX: subscribe di Awake, bukan OnEnable
+        // Jika GameObject ini disabled saat Start, OnEnable tidak pernah dipanggil
+        // sehingga event tidak pernah terdaftar
         GameManager.GameOverEvent += ShowGameOver;
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        Debug.Log("[GameOverUI_Bonus] Subscribed ke GameOverEvent di Awake.");
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
+        else
+            Debug.LogError("[GameOverUI_Bonus] gameOverPanel BELUM DI-ASSIGN di Inspector!");
     }
 
-    void OnDisable()
+    void OnDestroy()
     {
         GameManager.GameOverEvent -= ShowGameOver;
     }
+
+    // Hapus OnEnable/OnDisable — sudah dipindah ke Awake/OnDestroy
+    // agar tidak double-subscribe jika GameObject di-enable ulang
 
     void Start()
     {
@@ -41,10 +44,16 @@ public class GameOverUI_Bonus : MonoBehaviour
 
     public void ShowGameOver()
     {
-        Debug.Log("[GameOverUI_Bonus] ShowGameOver() terpanggil");
+        Debug.Log("[GameOverUI_Bonus] ShowGameOver() dipanggil!");
 
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(true);
+        if (gameOverPanel == null)
+        {
+            Debug.LogError("[GameOverUI_Bonus] gameOverPanel null — drag panel ke Inspector!");
+            return;
+        }
+
+        gameOverPanel.SetActive(true);
+        Debug.Log("[GameOverUI_Bonus] gameOverPanel.SetActive(true) berhasil.");
 
         float finalScore = 0f;
         float bestScore = PlayerPrefs.GetFloat("BEST_SCORE", 0f);
@@ -53,21 +62,18 @@ public class GameOverUI_Bonus : MonoBehaviour
         {
             finalScore = scoreSystem.GetCurrentScore();
             bestScore = scoreSystem.GetBestScore();
-            Debug.Log($"[GameOverUI_Bonus] Score dari AltitudeScoreSystem: {finalScore}");
         }
         else if (ScoreBridge.HasSavedScore)
         {
             finalScore = ScoreBridge.SavedScore;
-            Debug.Log($"[GameOverUI_Bonus] Score dari ScoreBridge: {finalScore}");
         }
         else if (GameStateBridge.HasSavedState)
         {
             finalScore = GameStateBridge.Score;
-            Debug.Log($"[GameOverUI_Bonus] Score dari GameStateBridge: {finalScore}");
         }
         else
         {
-            Debug.LogWarning("[GameOverUI_Bonus] Tidak ada sumber score tersedia!");
+            Debug.LogWarning("[GameOverUI_Bonus] Tidak ada sumber score tersedia.");
         }
 
         if (finalScoreText != null)
@@ -81,15 +87,12 @@ public class GameOverUI_Bonus : MonoBehaviour
     {
         PlayButtonClickSound();
         Time.timeScale = 1f;
-        // Kembali ke MainScenery
         UnityEngine.SceneManagement.SceneManager.LoadScene("MainScenery");
     }
 
     public void PlayButtonClickSound()
     {
         if (audioSource != null && buttonClickSound != null)
-        {
             audioSource.PlayOneShot(buttonClickSound);
-        }
     }
 }
