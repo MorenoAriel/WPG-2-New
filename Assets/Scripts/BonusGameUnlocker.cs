@@ -5,43 +5,51 @@ using UnityEngine.SceneManagement;
 public class BonusGameUnlocker : MonoBehaviour
 {
     [Header("References")]
-    public AltitudeScoreSystem scoreSystem;
-    public PlayerController    playerController;
-    public PlayerPhysics       playerPhysics;
+    public GameObject playerObject;     // assign Player GameObject di Inspector
+    public GameObject scoreObject;      // assign object yang punya AltitudeScoreSystem
+    public Animator   transition;
 
     [Header("Settings")]
-    public float  scoreThreshold = 500f;
-    public string bonusSceneName = "BonusGame";
+    public string bonusSceneName    = "BonusGame";
+    public string playerTag         = "Player";
+    public float  transitionDuration = 1f;
 
+    private AltitudeScoreSystem scoreSystem;
+    private PlayerController    playerController;
+    private PlayerPhysics       playerPhysics;
     private bool hasTriggered = false;
-    public Animator transition;
-    public float transitionDuration = 1f;
 
-    void Update()
+    void Awake()
     {
-        if (hasTriggered)        return;
-        if (scoreSystem == null) return;
+        scoreSystem      = scoreObject.GetComponent<AltitudeScoreSystem>();
+        playerController = playerObject.GetComponent<PlayerController>();
+        playerPhysics    = playerObject.GetComponent<PlayerPhysics>();
+    }
 
-        if (scoreSystem.GetCurrentScore() >= scoreThreshold)
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (hasTriggered) return;
+
+        if (collision.CompareTag(playerTag))
         {
             hasTriggered = true;
-            LoadBonusGame();
+
+            if (transition != null)
+                StartCoroutine(PlayTransitionAndLoad());
+            else
+                LoadBonusGame();
         }
     }
 
     IEnumerator PlayTransitionAndLoad()
     {
-        if (transition != null)
-            transition.SetTrigger("Start");
-
-        yield return new WaitForSeconds(1); // sesuaikan dengan durasi animasi
-
+        transition.SetTrigger("Start");
+        yield return new WaitForSeconds(transitionDuration);
         LoadBonusGame();
     }
 
     void LoadBonusGame()
     {
-        // Simpan semua state
         GameStateBridge.HasSavedState  = true;
         GameStateBridge.MainSceneName  = SceneManager.GetActiveScene().name;
         GameStateBridge.Score          = scoreSystem.GetCurrentScore();
@@ -53,11 +61,10 @@ public class BonusGameUnlocker : MonoBehaviour
             GameStateBridge.FlightAngle = playerPhysics.flightAngle;
         }
 
-        GameStateBridge.ControllerState   = playerController.currentState;
-        GameStateBridge.RotationAngle     = playerController.CurrentRotationAngle;
-        GameStateBridge.SavedTargetAngle  = playerController.TargetAngle;
+        GameStateBridge.ControllerState  = playerController.currentState;
+        GameStateBridge.RotationAngle    = playerController.CurrentRotationAngle;
+        GameStateBridge.SavedTargetAngle = playerController.TargetAngle;
 
-        // Pause score
         scoreSystem.StopScore();
 
         Debug.Log($"[BonusGameUnlocker] State tersimpan. Score: {GameStateBridge.Score}");
